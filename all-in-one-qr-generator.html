@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1020">
+<title>All-in-One QR Code Generator</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#121b30;--line:#2b3a55;--muted:#9fb0ca;--accent:#67e8f9}
+*{box-sizing:border-box}body{margin:0;padding:28px 14px;min-height:100vh;background:radial-gradient(circle at 10% 0,#243b67,transparent 38%),var(--bg);color:#f8fafc;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+main{width:min(100%,780px);margin:auto}.shell{background:#111a2e;border:1px solid var(--line);border-radius:24px;padding:clamp(18px,4vw,32px);box-shadow:0 24px 80px #0007}
+h1{font-size:clamp(25px,5vw,36px);margin:0 0 8px}.intro{color:var(--muted);margin:0 0 24px;line-height:1.6}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}.tab{background:#202d46;color:#dbeafe;border:1px solid #34445f;border-radius:999px;padding:9px 14px;font-weight:650;cursor:pointer}.tab[aria-pressed=true]{background:var(--accent);color:#08202a;border-color:var(--accent)}
+.panel{background:#0c1426;border:1px solid var(--line);border-radius:16px;padding:18px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field.full{grid-column:1/-1}
+label{display:block;font-size:14px;font-weight:650;margin:0 0 7px;color:#e2e8f0}
+input,textarea,select{width:100%;padding:12px 13px;border:1px solid #40516e;border-radius:11px;background:#111d33;color:white;font:inherit;min-width:0}
+textarea{min-height:105px;resize:vertical}input:focus,textarea:focus,select:focus{outline:2px solid #38bdf8;outline-offset:1px}
+small,.hint{color:var(--muted);line-height:1.55}.hint{font-size:13px;margin:10px 0 0}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}button{font:inherit;font-weight:700;border:0;border-radius:11px;padding:12px 17px;cursor:pointer}.primary{background:var(--accent);color:#08202a;flex:1}.secondary{background:#293851;color:#f1f5f9}
+#status{min-height:22px;color:#a5f3fc;margin:12px 0 0;font-size:14px}
+.result{display:none;margin-top:22px;background:#f8fafc;color:#0f172a;border-radius:18px;padding:20px;text-align:center}
+#qr{display:flex;justify-content:center;align-items:center;min-height:220px;overflow:auto}#qr canvas,#qr img{max-width:100%;height:auto}
+.preview{display:none;max-width:150px;max-height:130px;object-fit:contain;margin-top:10px;border-radius:10px;background:#fff;padding:5px}
+.colorline{display:flex;gap:12px}.colorline input{height:44px;padding:4px}
+.hidden{display:none!important}
+@media(max-width:540px){.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.actions button{width:100%}}
+</style>
+</head>
+<body>
+<main><section class="shell">
+<h1>All-in-One QR Code Generator</h1>
+<p class="intro">Text, website link, image link, Wi-Fi, email, phone, WhatsApp, location বা contact—এক জায়গা থেকেই QR Code তৈরি করুন।</p>
+<div class="tabs" role="group" aria-label="QR type">
+<button class="tab" data-mode="text" aria-pressed="true">Text</button>
+<button class="tab" data-mode="url" aria-pressed="false">Website</button>
+<button class="tab" data-mode="image" aria-pressed="false">Image</button>
+<button class="tab" data-mode="wifi" aria-pressed="false">Wi-Fi</button>
+<button class="tab" data-mode="email" aria-pressed="false">Email</button>
+<button class="tab" data-mode="phone" aria-pressed="false">Phone</button>
+<button class="tab" data-mode="sms" aria-pressed="false">SMS</button>
+<button class="tab" data-mode="whatsapp" aria-pressed="false">WhatsApp</button>
+<button class="tab" data-mode="location" aria-pressed="false">Location</button>
+<button class="tab" data-mode="contact" aria-pressed="false">Contact</button>
+</div>
+
+<div class="panel">
+<div id="fields"></div>
+<div class="fields" style="margin-top:16px">
+ <div class="field">
+  <label for="size">QR Size</label>
+  <select id="size"><option value="200">200 × 200</option><option value="256" selected>256 × 256</option><option value="320">320 × 320</option><option value="400">400 × 400</option></select>
+ </div>
+ <div class="field">
+  <label>QR Color / Background</label>
+  <div class="colorline"><input id="dark" type="color" value="#111827" aria-label="QR color"><input id="light" type="color" value="#ffffff" aria-label="Background color"></div>
+ </div>
+</div>
+<div class="actions"><button class="primary" id="make">Generate QR Code</button><button class="secondary" id="reset">Reset</button></div>
+<p id="status" role="status"></p>
+</div>
+
+<section class="result" id="result">
+ <div id="qr"></div>
+ <div class="actions"><button class="secondary" id="download">Download PNG</button><button class="secondary" id="copy">Copy QR content</button></div>
+</section>
+<p class="hint">Image QR সম্পর্কে: অন্য ফোনে scan করলে ছবি দেখাতে হলে ছবিটি আগে public image URL-এ upload থাকতে হবে। এখানে সেই URL দিলে QR scan করে ছবিটি খোলা যাবে। শুধু নিজের ফোনে থাকা image file-এর QR বানালে অন্য ফোনে ছবিটি পাওয়া যাবে না।</p>
+</section></main>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let mode='text',lastValue='',qrInstance=null;
+const templates={
+text:`<div class="field full"><label for="textValue">যে লেখা দেখাতে চান</label><textarea id="textValue" placeholder="আপনার লেখা এখানে লিখুন"></textarea></div>`,
+url:`<div class="field full"><label for="urlValue">Website URL</label><input id="urlValue" type="url" placeholder="https://example.com"></div>`,
+image:`<div class="field full"><label for="imageUrl">Public Image URL</label><input id="imageUrl" type="url" placeholder="https://example.com/my-photo.jpg"><p class="hint">ছবির সরাসরি public link দিন। Google Drive-এর private/share page link সবসময় কাজ নাও করতে পারে।</p></div>`,
+wifi:`<div class="field"><label for="ssid">Wi-Fi Name (SSID)</label><input id="ssid" placeholder="My WiFi"></div><div class="field"><label for="password">Password</label><input id="password" type="text" placeholder="Wi-Fi password"></div><div class="field full"><label for="security">Security</label><select id="security"><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">No password</option></select></div>`,
+email:`<div class="field"><label for="emailTo">Email address</label><input id="emailTo" type="email" placeholder="name@example.com"></div><div class="field"><label for="emailSubject">Subject</label><input id="emailSubject" placeholder="Subject"></div><div class="field full"><label for="emailBody">Message</label><textarea id="emailBody" placeholder="Your message"></textarea></div>`,
+phone:`<div class="field full"><label for="phoneNo">Phone number</label><input id="phoneNo" type="tel" placeholder="+8801XXXXXXXXX"></div>`,
+sms:`<div class="field"><label for="smsNo">Phone number</label><input id="smsNo" type="tel" placeholder="+8801XXXXXXXXX"></div><div class="field"><label for="smsText">Message</label><textarea id="smsText" placeholder="Your SMS"></textarea></div>`,
+whatsapp:`<div class="field"><label for="waNo">WhatsApp number</label><input id="waNo" inputmode="numeric" placeholder="8801XXXXXXXXX"><small>Country code-সহ লিখুন, + বা space ছাড়া।</small></div><div class="field"><label for="waText">Prefilled message</label><textarea id="waText" placeholder="Hello!"></textarea></div>`,
+location:`<div class="field"><label for="latitude">Latitude</label><input id="latitude" type="number" step="any" placeholder="23.8103"></div><div class="field"><label for="longitude">Longitude</label><input id="longitude" type="number" step="any" placeholder="90.4125"></div>`,
+contact:`<div class="field"><label for="fullName">Full name</label><input id="fullName" placeholder="Your name"></div><div class="field"><label for="company">Company (optional)</label><input id="company" placeholder="Company"></div><div class="field"><label for="contactPhone">Phone</label><input id="contactPhone" type="tel" placeholder="+8801XXXXXXXXX"></div><div class="field"><label for="contactEmail">Email</label><input id="contactEmail" type="email" placeholder="name@example.com"></div><div class="field full"><label for="website">Website (optional)</label><input id="website" placeholder="https://example.com"></div>`
+};
+function setMode(next){
+ mode=next;$('fields').innerHTML=templates[mode];
+ document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));
+ $('status').textContent='';$('result').style.display='none';$('qr').innerHTML='';
+}
+function val(id){return $(id)?.value.trim()||''}
+function escWifi(s){return s.replace(/([\\;,":])/g,'\\$1')}
+function buildValue(){
+ if(mode==='text')return val('textValue');
+ if(mode==='url'){let u=val('urlValue');if(u&&!/^https?:\/\//i.test(u))u='https://'+u;return u}
+ if(mode==='image'){let u=val('imageUrl');if(u&&!/^https?:\/\//i.test(u))u='https://'+u;return u}
+ if(mode==='wifi'){let ssid=val('ssid'),sec=val('security'),pw=val('password');return ssid?`WIFI:T:${sec};S:${escWifi(ssid)};P:${sec==='nopass'?'':escWifi(pw)};;`:''}
+ if(mode==='email'){let to=val('emailTo');return to?`mailto:${to}?subject=${encodeURIComponent(val('emailSubject'))}&body=${encodeURIComponent(val('emailBody'))}`:''}
+ if(mode==='phone'){let p=val('phoneNo');return p?`tel:${p}`:''}
+ if(mode==='sms'){let p=val('smsNo');return p?`SMSTO:${p}:${val('smsText')}`:''}
+ if(mode==='whatsapp'){let p=val('waNo').replace(/\D/g,'');return p?`https://wa.me/${p}?text=${encodeURIComponent(val('waText'))}`:''}
+ if(mode==='location'){let a=val('latitude'),b=val('longitude');return a&&b?`https://www.google.com/maps?q=${encodeURIComponent(a+','+b)}`:''}
+ if(mode==='contact'){let n=val('fullName');if(!n)return '';return `BEGIN:VCARD\nVERSION:3.0\nFN:${n}\nORG:${val('company')}\nTEL:${val('contactPhone')}\nEMAIL:${val('contactEmail')}\nURL:${val('website')}\nEND:VCARD`}
+ return '';
+}
+$('make').addEventListener('click',()=>{
+ const value=buildValue();
+ if(!value){$('status').textContent='প্রয়োজনীয় তথ্য পূরণ করুন।';return}
+ if(typeof QRCode==='undefined'){$('status').textContent='QR library load হয়নি। Internet connection পরীক্ষা করুন।';return}
+ lastValue=value;$('qr').innerHTML='';
+ const n=Number($('size').value);
+ qrInstance=new QRCode($('qr'),{text:value,width:n,height:n,colorDark:$('dark').value,colorLight:$('light').value,correctLevel:QRCode.CorrectLevel.H});
+ $('result').style.display='block';$('status').textContent='QR Code তৈরি হয়েছে! অন্য ফোন দিয়ে scan করে পরীক্ষা করুন।';
+});
+$('download').addEventListener('click',()=>{
+ const canvas=$('qr').querySelector('canvas'),img=$('qr').querySelector('img');
+ const url=canvas?canvas.toDataURL('image/png'):img?.src;
+ if(!url)return;
+ const a=document.createElement('a');a.href=url;a.download='my-qr-code.png';a.click();
+});
+$('copy').addEventListener('click',async()=>{
+ if(!lastValue)return;
+ try{await navigator.clipboard.writeText(lastValue);$('status').textContent='QR-এর content copy হয়েছে।'}
+ catch(e){$('status').textContent='এই browser-এ copy করা যায়নি।'}
+});
+$('reset').addEventListener('click',()=>{setMode(mode);$('status').textContent='ফর্ম reset হয়েছে।'});
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+setMode('text');
+</script>
+</body></html>
